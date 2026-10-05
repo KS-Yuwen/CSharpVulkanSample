@@ -5,10 +5,29 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <!-- Vulkan SDKの環境変数。必要なら -p:GlslcPath=... で指定できます。 -->
+    <GlslcPath Condition="'$(GlslcPath)' == ''">$(VULKAN_SDK)\Bin\glslc.exe</GlslcPath>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Silk.NET.Windowing" Version="2.23.0" />
     <PackageReference Include="Silk.NET.Vulkan" Version="2.23.0" />
     <PackageReference Include="Silk.NET.Vulkan.Extensions.KHR" Version="2.23.0" />
   </ItemGroup>
+  <ItemGroup>
+    <ShaderSource Include="Shaders\triangle.vert;Shaders\triangle.frag" />
+    <!-- 生成物はobjに置き、実行・発行先のShadersフォルダへコピーします。 -->
+    <None Include="$(BaseIntermediateOutputPath)Shaders\triangle.vert.spv" Link="Shaders\triangle.vert.spv" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <None Include="$(BaseIntermediateOutputPath)Shaders\triangle.frag.spv" Link="Shaders\triangle.frag.spv" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+  <!-- 変更されたシェーダーだけ、Vulkan 1.0用のSPIR-Vへコンパイルします。 -->
+  <Target Name="CompileShaders" BeforeTargets="PrepareForBuild"
+          Inputs="@(ShaderSource);$(MSBuildProjectFullPath)"
+          Outputs="@(ShaderSource->'$(BaseIntermediateOutputPath)Shaders\%(Filename)%(Extension).spv')">
+    <Error Condition="!Exists('$(GlslcPath)')" Text="glslc.exeが見つかりません。Vulkan SDKを確認してターミナルを開き直すか、-p:GlslcPath=コンパイラのパス を指定してください。" />
+    <MakeDir Directories="$(BaseIntermediateOutputPath)Shaders" />
+    <Exec Command="&quot;$(GlslcPath)&quot; --target-env=vulkan1.0 &quot;%(ShaderSource.FullPath)&quot; -o &quot;$(BaseIntermediateOutputPath)Shaders\%(ShaderSource.Filename)%(ShaderSource.Extension).spv&quot;" />
+    <ItemGroup>
+      <FileWrites Include="@(ShaderSource->'$(BaseIntermediateOutputPath)Shaders\%(Filename)%(Extension).spv')" />
+    </ItemGroup>
+  </Target>
 </Project>

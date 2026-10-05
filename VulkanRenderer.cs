@@ -164,6 +164,7 @@ public sealed unsafe partial class VulkanApp
         _framebuffers = new Framebuffer[count];
         _presentReady = new Semaphore[count];
         CreateRenderPass(format.Format);
+        CreateGraphicsPipeline();
         for (int i = 0; i < count; i++)
         {
             var viewInfo = new ImageViewCreateInfo
@@ -190,7 +191,7 @@ public sealed unsafe partial class VulkanApp
 
     private void CreateRenderPass(Format format)
     {
-        // LoadOp.Clearが背景色を書き込みます。シェーダーやPipelineはまだ不要です。
+        // LoadOp.Clearが背景色を書き込み、その上にPipelineで三角形を描きます。
         // 前の画像内容を捨て、終了時に画面表示用のレイアウトへ移行します。
         var attachment = new AttachmentDescription
         {
@@ -248,6 +249,7 @@ public sealed unsafe partial class VulkanApp
             ClearValueCount = 1, PClearValues = &clear
         };
         _vk.CmdBeginRenderPass(_commandBuffer, in render, SubpassContents.Inline);
+        RecordTriangle();
         _vk.CmdEndRenderPass(_commandBuffer);
         Check(_vk.EndCommandBuffer(_commandBuffer), "描画命令終了");
         var wait = _imageAvailable;
@@ -275,7 +277,7 @@ public sealed unsafe partial class VulkanApp
         if (result == Result.Success || result == Result.SuboptimalKhr)
         {
             _presentedFrames++;
-            if (_presentedFrames == 1) Console.WriteLine("青色の背景を描画し、画面へ送信しました。");
+            if (_presentedFrames == 1) Console.WriteLine("青色の背景とRGBの三角形を描画し、画面へ送信しました。");
             // 起動確認ではリサイズとSwapchain再作成も通します。
             if (_smokeTest && _presentedFrames == 20) _window.Size = new(800, 450);
             if (_smokeTest && _presentedFrames == 40) _window.Size = new(960, 540);
@@ -291,6 +293,7 @@ public sealed unsafe partial class VulkanApp
 
     private void DestroySwapchain()
     {
+        DestroyGraphicsPipeline();
         foreach (var framebuffer in _framebuffers)
             if (framebuffer.Handle != 0) _vk!.DestroyFramebuffer(_device, framebuffer, null);
         foreach (var view in _views)
