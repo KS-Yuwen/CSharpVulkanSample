@@ -73,6 +73,7 @@ public sealed unsafe partial class VulkanApp
         // 最初のフレームは待たずに進めるよう、Fenceを完了済みで作ります。
         var fenceInfo = new FenceCreateInfo { SType = StructureType.FenceCreateInfo, Flags = FenceCreateFlags.SignaledBit };
         Check(_vk.CreateFence(_device, in fenceInfo, null, out _frameFence), "Fence作成");
+        CreateVertexBuffer();
         CreateSwapchain();
     }
 
@@ -225,6 +226,9 @@ public sealed unsafe partial class VulkanApp
         // 最小化中の0×0画像は作らず、復元された後で再開します。
         var size = _window.FramebufferSize;
         if (size.X <= 0 || size.Y <= 0) return;
+        // 経過秒数を使い、フレームレートによらず毎秒30度で回転します。
+        // 角度を1回転以内に収め、長時間実行時の精度低下を抑えます。
+        _rotationAngle = (_rotationAngle + delta * RotationSpeed) % Math.Tau;
         if (_resizeRequested)
         {
             Check(_vk!.DeviceWaitIdle(_device), "リサイズ前のGPU待機");
@@ -277,7 +281,7 @@ public sealed unsafe partial class VulkanApp
         if (result == Result.Success || result == Result.SuboptimalKhr)
         {
             _presentedFrames++;
-            if (_presentedFrames == 1) Console.WriteLine("青色の背景とRGBの三角形を描画し、画面へ送信しました。");
+            if (_presentedFrames == 1) Console.WriteLine("青色の背景と回転するRGB三角形を描画し、画面へ送信しました。");
             // 起動確認ではリサイズとSwapchain再作成も通します。
             if (_smokeTest && _presentedFrames == 20) _window.Size = new(800, 450);
             if (_smokeTest && _presentedFrames == 40) _window.Size = new(960, 540);
@@ -285,7 +289,7 @@ public sealed unsafe partial class VulkanApp
             if (_smokeTest && _presentedFrames >= 60)
             {
                 Check(_vk.DeviceWaitIdle(_device), "起動確認のGPU待機");
-                Console.WriteLine($"smoke-test完了: {_presentedFrames}フレームを表示しました。");
+                Console.WriteLine($"smoke-test完了: {_presentedFrames}フレームを表示しました。回転角度: {_rotationAngle * 180 / Math.PI:F1}度。");
                 _window.Close();
             }
         }
@@ -313,6 +317,7 @@ public sealed unsafe partial class VulkanApp
         {
             _vk!.DeviceWaitIdle(_device);
             DestroySwapchain();
+            DestroyVertexBuffer();
             if (_frameFence.Handle != 0) _vk.DestroyFence(_device, _frameFence, null);
             if (_imageAvailable.Handle != 0) _vk.DestroySemaphore(_device, _imageAvailable, null);
             if (_commandPool.Handle != 0) _vk.DestroyCommandPool(_device, _commandPool, null);

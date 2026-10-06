@@ -51,10 +51,25 @@ public sealed unsafe partial class VulkanApp
                 Stage = ShaderStageFlags.FragmentBit, Module = fragment, PName = (byte*)entryPoint
             };
 
-            // 頂点はgl_VertexIndexでシェーダー内から取得するため、頂点入力は空です。
+            // C#のVertex構造体とGLSLのlocationを対応させます。
+            var binding = new VertexInputBindingDescription
+            {
+                Binding = 0, Stride = (uint)sizeof(Vertex), InputRate = VertexInputRate.Vertex
+            };
+            var attributes = stackalloc VertexInputAttributeDescription[2];
+            attributes[0] = new VertexInputAttributeDescription
+            {
+                Binding = 0, Location = 0, Format = Format.R32G32Sfloat, Offset = 0
+            };
+            attributes[1] = new VertexInputAttributeDescription
+            {
+                Binding = 0, Location = 1, Format = Format.R32G32B32Sfloat, Offset = 2 * sizeof(float)
+            };
             var vertexInput = new PipelineVertexInputStateCreateInfo
             {
-                SType = StructureType.PipelineVertexInputStateCreateInfo
+                SType = StructureType.PipelineVertexInputStateCreateInfo,
+                VertexBindingDescriptionCount = 1, PVertexBindingDescriptions = &binding,
+                VertexAttributeDescriptionCount = 2, PVertexAttributeDescriptions = attributes
             };
             var assembly = new PipelineInputAssemblyStateCreateInfo
             {
@@ -95,8 +110,16 @@ public sealed unsafe partial class VulkanApp
                 SType = StructureType.PipelineDynamicStateCreateInfo,
                 DynamicStateCount = 2, PDynamicStates = states
             };
-            // DescriptorやPush Constantはまだ使わないため、空のLayoutです。
-            var layoutInfo = new PipelineLayoutCreateInfo { SType = StructureType.PipelineLayoutCreateInfo };
+            // 頂点シェーダーへ4バイトの回転角度（ラジアン）を渡します。
+            var pushRange = new PushConstantRange
+            {
+                StageFlags = ShaderStageFlags.VertexBit, Offset = 0, Size = sizeof(float)
+            };
+            var layoutInfo = new PipelineLayoutCreateInfo
+            {
+                SType = StructureType.PipelineLayoutCreateInfo,
+                PushConstantRangeCount = 1, PPushConstantRanges = &pushRange
+            };
             Check(_vk!.CreatePipelineLayout(_device, in layoutInfo, null, out _pipelineLayout), "PipelineLayout作成");
             var info = new GraphicsPipelineCreateInfo
             {
@@ -131,7 +154,13 @@ public sealed unsafe partial class VulkanApp
         var scissor = new Rect2D(default, _extent);
         _vk.CmdSetViewport(_commandBuffer, 0, 1, in viewport);
         _vk.CmdSetScissor(_commandBuffer, 0, 1, in scissor);
-        // 3頂点で1つの三角形を描きます。頂点バッファは不要です。
+        var buffer = _vertexBuffer;
+        ulong offset = 0;
+        _vk.CmdBindVertexBuffers(_commandBuffer, 0, 1, &buffer, &offset);
+        // 値は描画命令へコピーされるため、このローカル変数を毎フレーム変えられます。
+        float angle = (float)_rotationAngle;
+        _vk.CmdPushConstants(_commandBuffer, _pipelineLayout, ShaderStageFlags.VertexBit, 0, sizeof(float), &angle);
+        // 頂点バッファの3頂点で1つの三角形を描きます。
         _vk.CmdDraw(_commandBuffer, 3, 1, 0, 0);
     }
 
