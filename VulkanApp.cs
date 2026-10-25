@@ -20,7 +20,7 @@ public sealed unsafe partial class VulkanApp : IDisposable
         // OpenGL用のコンテキストを作らず、Vulkan用のウィンドウを作ります。
         var options = WindowOptions.DefaultVulkan;
         options.Size = new Vector2D<int>(960, 540);
-        options.Title = "C# + Silk.NET + Vulkan | Rotating RGB triangle";
+        options.Title = "C# + Silk.NET + Vulkan | Textured quad";
         // 学習用に描画回数を抑えます。
         options.UpdatesPerSecond = 30;
         options.FramesPerSecond = 30;

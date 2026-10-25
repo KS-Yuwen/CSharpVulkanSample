@@ -74,6 +74,7 @@ public sealed unsafe partial class VulkanApp
         var fenceInfo = new FenceCreateInfo { SType = StructureType.FenceCreateInfo, Flags = FenceCreateFlags.SignaledBit };
         Check(_vk.CreateFence(_device, in fenceInfo, null, out _frameFence), "Fence作成");
         CreateVertexBuffer();
+        CreateTexture();
         CreateSwapchain();
     }
 
@@ -192,7 +193,7 @@ public sealed unsafe partial class VulkanApp
 
     private void CreateRenderPass(Format format)
     {
-        // LoadOp.Clearが背景色を書き込み、その上にPipelineで三角形を描きます。
+        // LoadOp.Clearが背景色を書き込み、その上にPipelineで四角形を描きます。
         // 前の画像内容を捨て、終了時に画面表示用のレイアウトへ移行します。
         var attachment = new AttachmentDescription
         {
@@ -253,7 +254,7 @@ public sealed unsafe partial class VulkanApp
             ClearValueCount = 1, PClearValues = &clear
         };
         _vk.CmdBeginRenderPass(_commandBuffer, in render, SubpassContents.Inline);
-        RecordTriangle();
+        RecordQuad();
         _vk.CmdEndRenderPass(_commandBuffer);
         Check(_vk.EndCommandBuffer(_commandBuffer), "描画命令終了");
         var wait = _imageAvailable;
@@ -281,7 +282,7 @@ public sealed unsafe partial class VulkanApp
         if (result == Result.Success || result == Result.SuboptimalKhr)
         {
             _presentedFrames++;
-            if (_presentedFrames == 1) Console.WriteLine("青色の背景と回転するRGB三角形を描画し、画面へ送信しました。");
+            if (_presentedFrames == 1) Console.WriteLine("青色の背景と回転するチェッカー模様の四角形を描画し、画面へ送信しました。");
             // 起動確認ではリサイズとSwapchain再作成も通します。
             if (_smokeTest && _presentedFrames == 20) _window.Size = new(800, 450);
             if (_smokeTest && _presentedFrames == 40) _window.Size = new(960, 540);
@@ -318,6 +319,7 @@ public sealed unsafe partial class VulkanApp
             _vk!.DeviceWaitIdle(_device);
             DestroySwapchain();
             DestroyVertexBuffer();
+            DestroyTexture();
             if (_frameFence.Handle != 0) _vk.DestroyFence(_device, _frameFence, null);
             if (_imageAvailable.Handle != 0) _vk.DestroySemaphore(_device, _imageAvailable, null);
             if (_commandPool.Handle != 0) _vk.DestroyCommandPool(_device, _commandPool, null);

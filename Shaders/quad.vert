@@ -1,14 +1,14 @@
 #version 450
 
-// C#の頂点バッファから位置と色を受け取ります。
+// C#の頂点バッファから位置とUV（画像上の座標）を受け取ります。
 layout(location = 0) in vec2 position;
-layout(location = 1) in vec3 color;
+layout(location = 1) in vec2 uv;
 layout(push_constant) uniform Rotation
 {
     float angle; // C#から渡されるラジアン。PipelineLayoutと同じ4バイトです。
 } rotation;
 
-layout(location = 0) out vec3 vertexColor;
+layout(location = 0) out vec2 textureUV;
 
 void main()
 {
@@ -18,5 +18,5 @@ void main()
                         s * position.x + c * position.y);
     // 正の高さのViewportではYが下向きなので、画面上では時計回りです。
     gl_Position = vec4(rotated, 0.0, 1.0);
-    vertexColor = color;
+    textureUV = uv;
 }

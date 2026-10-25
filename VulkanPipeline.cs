@@ -36,8 +36,8 @@ public sealed unsafe partial class VulkanApp
         var entryPoint = SilkMarshal.StringToPtr("main");
         try
         {
-            vertex = LoadShader("triangle.vert.spv");
-            fragment = LoadShader("triangle.frag.spv");
+            vertex = LoadShader("quad.vert.spv");
+            fragment = LoadShader("quad.frag.spv");
             // シェーダーはPipeline作成時に読み込まれ、作成後はModuleを解放できます。
             var stages = stackalloc PipelineShaderStageCreateInfo[2];
             stages[0] = new PipelineShaderStageCreateInfo
@@ -63,7 +63,7 @@ public sealed unsafe partial class VulkanApp
             };
             attributes[1] = new VertexInputAttributeDescription
             {
-                Binding = 0, Location = 1, Format = Format.R32G32B32Sfloat, Offset = 2 * sizeof(float)
+                Binding = 0, Location = 1, Format = Format.R32G32Sfloat, Offset = 2 * sizeof(float)
             };
             var vertexInput = new PipelineVertexInputStateCreateInfo
             {
@@ -115,10 +115,12 @@ public sealed unsafe partial class VulkanApp
             {
                 StageFlags = ShaderStageFlags.VertexBit, Offset = 0, Size = sizeof(float)
             };
+            var textureLayout = _textureSetLayout;
             var layoutInfo = new PipelineLayoutCreateInfo
             {
                 SType = StructureType.PipelineLayoutCreateInfo,
-                PushConstantRangeCount = 1, PPushConstantRanges = &pushRange
+                PushConstantRangeCount = 1, PPushConstantRanges = &pushRange,
+                SetLayoutCount = 1, PSetLayouts = &textureLayout
             };
             Check(_vk!.CreatePipelineLayout(_device, in layoutInfo, null, out _pipelineLayout), "PipelineLayout作成");
             var info = new GraphicsPipelineCreateInfo
@@ -141,10 +143,10 @@ public sealed unsafe partial class VulkanApp
         }
     }
 
-    private void RecordTriangle()
+    private void RecordQuad()
     {
         _vk!.CmdBindPipeline(_commandBuffer, PipelineBindPoint.Graphics, _graphicsPipeline);
-        // 中央に正方形のViewportを置き、横長・縦長でも三角形の縦横比を保ちます。
+        // 中央に正方形のViewportを置き、横長・縦長でも四角形の縦横比を保ちます。
         float side = Math.Min(_extent.Width, _extent.Height);
         var viewport = new Viewport
         {
@@ -160,8 +162,12 @@ public sealed unsafe partial class VulkanApp
         // 値は描画命令へコピーされるため、このローカル変数を毎フレーム変えられます。
         float angle = (float)_rotationAngle;
         _vk.CmdPushConstants(_commandBuffer, _pipelineLayout, ShaderStageFlags.VertexBit, 0, sizeof(float), &angle);
-        // 頂点バッファの3頂点で1つの三角形を描きます。
-        _vk.CmdDraw(_commandBuffer, 3, 1, 0, 0);
+        _vk.CmdBindIndexBuffer(_commandBuffer, _indexBuffer, 0, IndexType.Uint16);
+        var textureSet = _textureSet;
+        _vk.CmdBindDescriptorSets(_commandBuffer, PipelineBindPoint.Graphics, _pipelineLayout,
+            0, 1, &textureSet, 0, null);
+        // 6インデックスで2枚の三角形を描き、四角形にします。
+        _vk.CmdDrawIndexed(_commandBuffer, 6, 1, 0, 0, 0);
     }
 
     private void DestroyGraphicsPipeline()
